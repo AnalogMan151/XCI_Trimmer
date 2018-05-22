@@ -72,7 +72,7 @@ def trim():
 
 # Check if copy file flag is set and copy file if so. Truncate at padding address
 def quicktrim():
-    global filename, copy_bool
+    global filename
 
     if filesize == padding_offset:
         print('ROM is already trimmed')
@@ -91,7 +91,7 @@ def quicktrim():
 
 # Check if file is already padded. If not, check if copy file flag is set and copy file if so. Add padding to end of file until file reached cart size
 def pad():
-    global filename, copy_bool
+    global filename
 
     padding = bytearray()
 
