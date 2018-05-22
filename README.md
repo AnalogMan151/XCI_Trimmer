@@ -1,5 +1,5 @@
 # XCI_Trimmer
-Python3 script to trim and pad XCI ROM files
+Python3 script to trim and pad XCI ROM files. Works on Windows, Linux, macOS and any OS that can run python3.
 
 ```
 usage: XCI_Trimmer.py [-h] (-t | -qt | -p) filename
