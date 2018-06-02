@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: AnalogMan
 # Thanks to Destiny1984 (https://github.com/Destiny1984)
-# Modified Date: 2018-05-22
+# Modified Date: 2018-06-02
 # Purpose: Trims or pads extra bytes from XCI files
 
 import os
@@ -16,10 +16,6 @@ filesize = 0
 cartsize = 0
 copy_bool = False
 
-# Retrieve N bytes of data in big endian from passed data set starting at passed offset
-def readBE(data, offset, n):
-    return (int.from_bytes(data[offset:offset+(n)], byteorder='big'))
-
 # Retrieve N bytes of data in little endian from passed data set starting at passed offset
 def readLE(data, offset, n):
     return (int.from_bytes(data[offset:offset+(n)], byteorder='little'))
@@ -32,7 +28,7 @@ def getSizes():
 
     with open(filename, 'rb') as f:
         XCI = f.read(512)
-        cart_size = readBE(XCI, 0x10C, 2)
+        cart_size = readLE(XCI, 0x10D, 1)
         if cart_size == 0xF8:
             ROM_size = 2
         elif cart_size == 0xF0:
@@ -52,31 +48,24 @@ def getSizes():
 
 # Check if file is already trimmed. If not, verify padding has no unexpected data. If not, truncate file at padding address
 def trim():
+    global filename
+    pad2 = bytearray()
+
     if filesize == padding_offset:
         print('ROM is already trimmed')
         return
 
     print('Checking for data in padding...')
 
+    i = cartsize - padding_offset
+
     with open(filename, 'rb') as f:
         f.seek(padding_offset)
-        while True:
-            b = f.read(1)
-            if not b:
-                # eof
-                break
-            if b != b'\xFF':
-                print('Unexpected data found in padding at 0x{:X}! Aborting Trim.'.format(f.tell()))
-                return
-    quicktrim()
-
-# Check if copy file flag is set and copy file if so. Truncate at padding address
-def quicktrim():
-    global filename
-
-    if filesize == padding_offset:
-        print('ROM is already trimmed')
-        return
+        pad = f.read(i)
+        pad2 += b'\xFF' * i
+        if pad != pad2:
+            print('Unexpected data found in padding! Aborting Trim.')
+            return
 
     print('Trimming {:s}...\n'.format(filename))
 
@@ -120,7 +109,6 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     parser.add_argument('filename', help='Path to XCI rom file')
     group.add_argument('-t', '--trim', action='store_true', help='Trim excess bytes')
-    group.add_argument('-qt', '--quicktrim', action='store_true', help='Trims without safety check for unexpected game data')
     group.add_argument('-p', '--pad', action='store_true', help='Restore excess bytes')
     parser.add_argument('-c', '--copy', action='store_true', help='Creates a copy instead of modifying original file')
 
@@ -157,8 +145,6 @@ def main():
         copy_bool = True
     if args.trim:
         trim()
-    if args.quicktrim:
-        quicktrim()
     if args.pad:
         pad()
 
