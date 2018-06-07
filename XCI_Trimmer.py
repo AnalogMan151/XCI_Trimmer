@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: AnalogMan
 # Thanks to Destiny1984 (https://github.com/Destiny1984)
-# Modified Date: 2018-06-02
+# Modified Date: 2018-06-07
 # Purpose: Trims or pads extra bytes from XCI files
 
 import os
@@ -49,7 +49,8 @@ def getSizes():
 # Check if file is already trimmed. If not, verify padding has no unexpected data. If not, truncate file at padding address
 def trim():
     global filename
-    pad2 = bytearray()
+    pad_a2 = bytearray()
+    pad_b2 = bytearray()
 
     if filesize == padding_offset:
         print('ROM is already trimmed')
@@ -61,9 +62,13 @@ def trim():
 
     with open(filename, 'rb') as f:
         f.seek(padding_offset)
-        pad = f.read(i)
-        pad2 += b'\xFF' * i
-        if pad != pad2:
+        j = int(i/2)
+        i -= j
+        pad_a = f.read(j)
+        pad_a2 += b'\xFF' * (j)
+        pad_b = f.read(i)
+        pad_b2 += b'\xFF' * (i)
+        if pad_a != pad_a2 or pad_b != pad_b2:
             print('Unexpected data found in padding! Aborting Trim.')
             return
 
@@ -82,7 +87,8 @@ def trim():
 def pad():
     global filename
 
-    padding = bytearray()
+    padding1 = bytearray()
+    padding2 = bytearray()
 
     print('Padding {:s}...\n'.format(filename))
 
@@ -96,10 +102,15 @@ def pad():
         filename = copypath
 
     i = cartsize - filesize
+    j = int(i/2)
+    i -= j
 
     with open(filename, 'ab') as f:
-        padding += b'\xFF' * i
-        f.write(padding)
+        padding1 += b'\xFF' * j
+        padding2 += b'\xFF' * i
+        f.write(padding1)
+        f.write(padding2)
+
             
 def main():
     print('\n========== XCI Trimmer ==========\n')
