@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: AnalogMan
 # Thanks to Destiny1984 (https://github.com/Destiny1984)
-# Modified Date: 2018-06-07
+# Modified Date: 2018-06-10
 # Purpose: Trims or pads extra bytes from XCI files
 
 import os
@@ -49,8 +49,7 @@ def getSizes():
 # Check if file is already trimmed. If not, verify padding has no unexpected data. If not, truncate file at padding address
 def trim():
     global filename
-    pad_a2 = bytearray()
-    pad_b2 = bytearray()
+    pad_2 = bytearray()
 
     if filesize == padding_offset:
         print('ROM is already trimmed')
@@ -59,16 +58,22 @@ def trim():
     print('Checking for data in padding...')
 
     i = cartsize - padding_offset
+    k = 0
 
     with open(filename, 'rb') as f:
         f.seek(padding_offset)
-        j = int(i/2)
-        i -= j
-        pad_a = f.read(j)
-        pad_a2 += b'\xFF' * (j)
-        pad_b = f.read(i)
-        pad_b2 += b'\xFF' * (i)
-        if pad_a != pad_a2 or pad_b != pad_b2:
+
+        for _ in range(16):
+            j = int(i/16)
+            k = i - (j*16)
+            pad = f.read(j)
+            pad_2 = b'\xFF' * j
+            if pad != pad_2:
+                print('Unexpected data found in padding! Aborting Trim.')
+                return
+        pad = f.read(k)
+        pad_2 = b'\xFF' * k
+        if pad != pad_2:
             print('Unexpected data found in padding! Aborting Trim.')
             return
 
@@ -87,8 +92,7 @@ def trim():
 def pad():
     global filename
 
-    padding1 = bytearray()
-    padding2 = bytearray()
+    padding = bytearray()
 
     print('Padding {:s}...\n'.format(filename))
 
@@ -102,14 +106,16 @@ def pad():
         filename = copypath
 
     i = cartsize - filesize
-    j = int(i/2)
-    i -= j
+    k = 0
 
     with open(filename, 'ab') as f:
-        padding1 += b'\xFF' * j
-        padding2 += b'\xFF' * i
-        f.write(padding1)
-        f.write(padding2)
+        for _ in range(16):
+            j = int(i/16)
+            k = i - (j*16)
+            padding = b'\xFF' * j
+            f.write(padding)
+        padding = b'\xFF' * k
+        f.write(padding)
 
             
 def main():
