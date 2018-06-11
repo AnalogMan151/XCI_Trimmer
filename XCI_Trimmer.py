@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: AnalogMan
 # Thanks to Destiny1984 (https://github.com/Destiny1984)
-# Modified Date: 2018-06-10
+# Modified Date: 2018-06-11
 # Purpose: Trims or pads extra bytes from XCI files
 
 import os
@@ -49,7 +49,8 @@ def getSizes():
 # Check if file is already trimmed. If not, verify padding has no unexpected data. If not, truncate file at padding address
 def trim():
     global filename
-    pad_2 = bytearray()
+    pad_check = bytearray(b'\xFF' * (100 * 1024 * 1024))
+    pad_remainder = bytearray()
 
     if filesize == padding_offset:
         print('ROM is already trimmed')
@@ -58,22 +59,19 @@ def trim():
     print('Checking for data in padding...')
 
     i = cartsize - padding_offset
-    k = 0
-
+    chunks = int(i/(100 * 1024 * 1024))
+    remainder = i - (chunks * (100 * 1024 * 1024))
+    pad_remainder += b'\xFF' * remainder
+    
     with open(filename, 'rb') as f:
         f.seek(padding_offset)
-
-        for _ in range(16):
-            j = int(i/16)
-            k = i - (j*16)
-            pad = f.read(j)
-            pad_2 = b'\xFF' * j
-            if pad != pad_2:
+        for _ in range(chunks):
+            pad = f.read(100 * 1024 * 1024)
+            if pad != pad_check:
                 print('Unexpected data found in padding! Aborting Trim.')
                 return
-        pad = f.read(k)
-        pad_2 = b'\xFF' * k
-        if pad != pad_2:
+        pad = f.read(remainder)
+        if pad != pad_remainder:
             print('Unexpected data found in padding! Aborting Trim.')
             return
 
@@ -92,7 +90,8 @@ def trim():
 def pad():
     global filename
 
-    padding = bytearray()
+    padding = bytearray(b'\xFF' * (100 * 1024 * 1024))
+    pad_remainder = bytearray()
 
     print('Padding {:s}...\n'.format(filename))
 
@@ -106,16 +105,14 @@ def pad():
         filename = copypath
 
     i = cartsize - filesize
-    k = 0
+    chunks = int(i/(100 * 1024 * 1024))
+    remainder = i - (chunks * (100 * 1024 * 1024))
+    pad_remainder += b'\xFF' * remainder
 
     with open(filename, 'ab') as f:
-        for _ in range(16):
-            j = int(i/16)
-            k = i - (j*16)
-            padding = b'\xFF' * j
+        for _ in range(chunks):
             f.write(padding)
-        padding = b'\xFF' * k
-        f.write(padding)
+        f.write(pad_remainder)
 
             
 def main():
