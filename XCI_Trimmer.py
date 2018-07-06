@@ -6,7 +6,7 @@
 
 import os
 import argparse
-from shutil import copy2
+from shutil import copyfile
 
 # Global variables
 filename = ""
@@ -62,7 +62,7 @@ def trim():
     chunks = int(i/(100 * 1024 * 1024))
     remainder = i - (chunks * (100 * 1024 * 1024))
     pad_remainder += b'\xFF' * remainder
-    
+
     with open(filename, 'rb') as f:
         f.seek(padding_offset)
         for _ in range(chunks):
@@ -79,7 +79,7 @@ def trim():
 
     if copy_bool:
         copypath = filename[:-4] + '_trimmed.xci'
-        copy2(filename, copypath)
+        copyfile(filename, copypath)
         filename = copypath
 
     with open(filename, 'r+b') as f:
@@ -101,7 +101,7 @@ def pad():
 
     if copy_bool:
         copypath = filename[:-4] + '_padded.xci'
-        copy2(filename, copypath)
+        copyfile(filename, copypath)
         filename = copypath
 
     i = cartsize - filesize
@@ -114,7 +114,7 @@ def pad():
             f.write(padding)
         f.write(pad_remainder)
 
-            
+
 def main():
     print('\n========== XCI Trimmer ==========\n')
 
@@ -133,7 +133,7 @@ def main():
     if os.path.isfile(args.filename) == False:
         print('ROM cannot be found\n')
         return 1
-    
+
     global filename, ROM_size, padding_offset, filesize, cartsize, copy_bool
     filename = args.filename
 
