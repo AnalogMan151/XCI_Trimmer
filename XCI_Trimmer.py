@@ -145,10 +145,10 @@ def md5sum(block_size=2**20):
             md5.update(padding)
         md5.update(pad_remainder)
 
-        suffix = ' [trim size: {}]'.format(filesize)
+        suffix = ' // trim size: {}'.format(filesize)
         print('{}  {}{}'.format(hash, filename, suffix))
 
-        suffix = ' [cart size: {}]'.format(cartsize)
+        suffix = ' // cart size: {}'.format(cartsize)
         hash = md5.hexdigest()
 
     print('{}  {}{}'.format(hash, filename, suffix))
