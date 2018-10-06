@@ -5,6 +5,7 @@
 # Purpose: Trims or pads extra bytes from XCI files
 
 import os
+import sys
 import hashlib
 import argparse
 from shutil import copyfile
@@ -12,6 +13,7 @@ from shutil import copyfile
 # Global variables
 filename = ""
 ROM_size = 0
+Data_size = 0.0
 padding_offset = 0
 filesize = 0
 cartsize = 0
@@ -50,11 +52,13 @@ def getSizes():
 # Check if file is already trimmed. If not, verify padding has no unexpected data. If not, truncate file at padding address
 def trim():
     global filename
+
     pad_check = bytearray(b'\xFF' * (100 * 1024 * 1024))
     pad_remainder = bytearray()
 
+    print('Trimming {:s}...\n'.format(filename))
     if filesize == padding_offset:
-        print('ROM is already trimmed')
+        print('ROM is already trimmed', file=sys.stderr)
         return
 
     print('Checking for data in padding...')
@@ -69,14 +73,12 @@ def trim():
         for _ in range(chunks):
             pad = f.read(100 * 1024 * 1024)
             if pad != pad_check:
-                print('Unexpected data found in padding! Aborting Trim.')
+                print('Unexpected data found in padding! Aborting Trim.', file=sys.stderr)
                 return
         pad = f.read(remainder)
         if pad != pad_remainder:
-            print('Unexpected data found in padding! Aborting Trim.')
+            print('Unexpected data found in padding! Aborting Trim.', file=sys.stderr)
             return
-
-    print('Trimming {:s}...\n'.format(filename))
 
     if copy_bool:
         copypath = filename[:-4] + '_trimmed.xci'
@@ -97,7 +99,7 @@ def pad():
     print('Padding {:s}...\n'.format(filename))
 
     if filesize == cartsize:
-        print('ROM is already padded')
+        print('ROM is already padded', file=sys.stderr)
         return
 
     if copy_bool:
@@ -115,9 +117,8 @@ def pad():
             f.write(padding)
         f.write(pad_remainder)
 
-
 # if rom is trimmed, output md5 hash of both trimmed and padded rom
-def md5sum(block_size=2**20):
+def md5sum(block_size=2**16):
 
     trimmed = False
     if filesize < cartsize:
@@ -153,13 +154,40 @@ def md5sum(block_size=2**20):
 
     print('{}  {}{}'.format(hash, filename, suffix))
 
+# validates input files
+def validate():
+
+    global filename, ROM_size, Data_size, padding_offset, filesize, cartsize
+
+    # Check if required files exist
+    if os.path.isfile(filename) == False:
+        print('ROM "{}" cannot be found\n'.format(filename), file=sys.stderr)
+        return False
+
+    ROM_size, Data_size, padding_offset = getSizes()
+
+    # If ROM_size does not match one of the expected values, abort
+    if ROM_size == 0:
+        print('Could not determine size for ROM "{}".'.format(filename), file=sys.stderr)
+        print('Sizes supported: 2G, 4G, 8G, 16G, 32G\n', file=sys.stderr)
+        return False
+
+    filesize = os.path.getsize(filename)
+    cartsize = (ROM_size * 1024 - (ROM_size * 0x48)) * 1024 * 1024
+
+    # If filesize is too small or too large, abort
+    if filesize < padding_offset or filesize > cartsize:
+        print('ROM "{}" is improperly trimmed or padded. Skipping.\n'.format(filename), file=sys.stderr)
+        return False
+
+    return True
 
 def main():
 
     # Arg parser for program options
     parser = argparse.ArgumentParser(description='Trim or Pad XCI rom files')
     group = parser.add_mutually_exclusive_group(required=True)
-    parser.add_argument('filename', help='Path to XCI rom file')
+    parser.add_argument('filename', help='Path to XCI rom file', nargs='+')
     group.add_argument('-t', '--trim', action='store_true', help='Trim excess bytes')
     group.add_argument('-p', '--pad', action='store_true', help='Restore excess bytes')
     group.add_argument('-m', '--md5', action='store_true', help='Compute md5 hash')
@@ -168,46 +196,37 @@ def main():
     # Check passed arguments
     args = parser.parse_args()
 
-    # Check if required files exist
-    if os.path.isfile(args.filename) == False:
-        print('ROM cannot be found\n')
-        return 1
-
-    global filename, ROM_size, padding_offset, filesize, cartsize, copy_bool
-    filename = args.filename
-
-    ROM_size, Data_size, padding_offset = getSizes()
-
-    # If ROM_size does not match one of the expected values, abort
-    if ROM_size == 0:
-        print('Could not determine ROM size. Sizes supported: 2G, 4G, 8G, 16G, 32G\n')
-        return 1
-
-    filesize = os.path.getsize(filename)
-    cartsize = (ROM_size * 1024 - (ROM_size * 0x48)) * 1024 * 1024
-
-    # If filesize is too small or too large, abort
-    if filesize < padding_offset or filesize > cartsize:
-        print('ROM is improperly trimmed or padded. Aborting.\n')
-        return 1
-
-    # mimic output of md5sum on linux
-    if args.md5:
-        md5sum()
-        return
-
-    print('\n========== XCI Trimmer ==========\n')
-    print('ROM  Size:     {:5d} GiB'.format(ROM_size))
-    print('Trim Size:     {:5.2f} GiB\n'.format(Data_size))
+    global copy_bool, filename, ROM_size, Data_size
 
     if args.copy:
         copy_bool = True
-    if args.trim:
-        trim()
-    if args.pad:
-        pad()
 
-    print('Done!\n')
+    if not args.md5:
+        print('\n========== XCI Trimmer ==========\n')
+
+    for filename in args.filename:
+        if not args.md5:
+            print('Processing {}'.format(filename))
+
+        if not validate():
+            continue
+
+        # mimic output of md5sum on linux
+        if args.md5:
+            md5sum()
+
+        else:
+            print()
+            print('ROM  Size:     {:5.2f} GiB'.format(ROM_size))
+            print('Trim Size:     {:5.2f} GiB\n'.format(Data_size))
+
+            if args.trim:
+                trim()
+            if args.pad:
+                pad()
+
+            print('Done!\n')
+
 
 if __name__ == "__main__":
     main()
