@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # Author: AnalogMan
 # Thanks to Destiny1984 (https://github.com/Destiny1984)
-# Modified Date: 2018-06-11
+# Modified Date: 2019-10-19
 # Purpose: Trims or pads extra bytes from XCI files
 
 import os
 import argparse
-from shutil import copyfile
+from shutil import copy2
 
 # Global variables
 filename = ""
@@ -54,7 +54,7 @@ def trim():
 
     if filesize == padding_offset:
         print('ROM is already trimmed')
-        return
+        return 1
 
     print('Checking for data in padding...')
 
@@ -62,29 +62,31 @@ def trim():
     chunks = int(i/(100 * 1024 * 1024))
     remainder = i - (chunks * (100 * 1024 * 1024))
     pad_remainder += b'\xFF' * remainder
-
+    
     with open(filename, 'rb') as f:
         f.seek(padding_offset)
         for _ in range(chunks):
             pad = f.read(100 * 1024 * 1024)
             if pad != pad_check:
                 print('Unexpected data found in padding! Aborting Trim.')
-                return
+                return 1
         pad = f.read(remainder)
         if pad != pad_remainder:
             print('Unexpected data found in padding! Aborting Trim.')
-            return
+            return 1
 
     print('Trimming {:s}...\n'.format(filename))
 
     if copy_bool:
         copypath = filename[:-4] + '_trimmed.xci'
-        copyfile(filename, copypath)
+        copy2(filename, copypath)
         filename = copypath
 
     with open(filename, 'r+b') as f:
         f.seek(padding_offset)
         f.truncate()
+    print('Done!\n')
+    return 0
 
 # Check if file is already padded. If not, check if copy file flag is set and copy file if so. Add padding to end of file until file reached cart size
 def pad():
@@ -97,11 +99,11 @@ def pad():
 
     if filesize == cartsize:
         print('ROM is already padded')
-        return
+        return 0
 
     if copy_bool:
         copypath = filename[:-4] + '_padded.xci'
-        copyfile(filename, copypath)
+        copy2(filename, copypath)
         filename = copypath
 
     i = cartsize - filesize
@@ -113,8 +115,10 @@ def pad():
         for _ in range(chunks):
             f.write(padding)
         f.write(pad_remainder)
+    print('Done!\n')
+    return 0
 
-
+            
 def main():
     print('\n========== XCI Trimmer ==========\n')
 
@@ -133,7 +137,7 @@ def main():
     if os.path.isfile(args.filename) == False:
         print('ROM cannot be found\n')
         return 1
-
+    
     global filename, ROM_size, padding_offset, filesize, cartsize, copy_bool
     filename = args.filename
 
@@ -158,11 +162,9 @@ def main():
     if args.copy:
         copy_bool = True
     if args.trim:
-        trim()
+        return(trim())
     if args.pad:
-        pad()
-
-    print('Done!\n')
+        return(pad())
 
 if __name__ == "__main__":
-    main()
+    exit(main())
